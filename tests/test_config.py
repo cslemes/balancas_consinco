@@ -8,6 +8,22 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import pytest
 from config import load_config, Config
 
+@pytest.fixture(autouse=True)
+def clean_env(monkeypatch):
+    """Isolate tests from ambient environment variables."""
+    keys_to_clear = [
+        k for k in os.environ.keys()
+        if k.startswith("SFTP_") or k in (
+            "LOCAL_BASE_DIR",
+            "REMOTE_BASE_DIR",
+            "FOLDER_PATTERN",
+            "SYNC_INTERVAL_SECONDS",
+            "DRY_RUN",
+        )
+    ]
+    for key in keys_to_clear:
+        monkeypatch.delenv(key, raising=False)
+
 def test_load_config_from_sftp_url(tmp_path):
     env_content = (
         "SFTP_URL=sftp://example.com:2323\n"
@@ -94,3 +110,44 @@ def test_load_config_defaults(tmp_path):
     assert cfg.timeout == 30
     assert cfg.dry_run is False
     assert cfg.local_base_dir == Path("C:/balancas")
+
+def test_sftp_host_overrides_sftp_url(tmp_path):
+    env_content = (
+        "SFTP_URL=sftp://url-host.com:2323\n"
+        "SFTP_HOST=explicit-host.com\n"
+    )
+    env_file = tmp_path / ".env"
+    env_file.write_text(env_content, encoding="utf-8")
+
+    cfg = load_config(env_file=str(env_file))
+    assert cfg.sftp_host == "explicit-host.com"
+    assert cfg.sftp_port == 2323
+
+def test_overrides_sftp_host_with_sftp_url(tmp_path):
+    env_content = "SFTP_URL=sftp://url-host.com:2323\n"
+    env_file = tmp_path / ".env"
+    env_file.write_text(env_content, encoding="utf-8")
+
+    cfg = load_config(env_file=str(env_file), overrides={"SFTP_HOST": "override-host.com"})
+    assert cfg.sftp_host == "override-host.com"
+
+def test_empty_string_env_values_fallback_to_defaults(tmp_path):
+    env_content = (
+        "SFTP_HOST=example.com\n"
+        "LOCAL_BASE_DIR=\n"
+        "SYNC_INTERVAL_SECONDS=\n"
+        "SFTP_TIMEOUT=\n"
+        "SFTP_PORT=\n"
+        "REMOTE_BASE_DIR=\n"
+        "FOLDER_PATTERN=\n"
+    )
+    env_file = tmp_path / ".env"
+    env_file.write_text(env_content, encoding="utf-8")
+
+    cfg = load_config(env_file=str(env_file))
+    assert cfg.local_base_dir == Path("C:/balancas")
+    assert cfg.sync_interval_seconds == 0
+    assert cfg.timeout == 30
+    assert cfg.sftp_port == 22
+    assert cfg.remote_base_dir == "."
+    assert cfg.folder_regex == r"(?i)^bal(\d+)$"

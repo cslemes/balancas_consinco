@@ -1,6 +1,6 @@
 import re
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 
 class FolderMapper:
@@ -23,12 +23,12 @@ class FolderMapper:
             return folder_name
         return None
 
-    def get_local_folder(self, local_base_dir: Path, remote_folder_name: str) -> Optional[Path]:
+    def get_local_folder(self, local_base_dir: Union[Path, str], remote_folder_name: str) -> Optional[Path]:
         """Constructs the local directory Path for a given remote folder name.
 
         Returns None if remote_folder_name does not match the configured pattern.
         """
         sub_name = self.match_folder(remote_folder_name)
         if sub_name is not None:
-            return local_base_dir / sub_name
+            return Path(local_base_dir) / sub_name
         return None

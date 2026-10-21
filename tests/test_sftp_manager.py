@@ -104,6 +104,7 @@ def test_sftp_manager_connect_success():
             look_for_keys=False,
             allow_agent=False,
         )
+        mock_ssh.get_transport.return_value.set_keepalive.assert_called_once_with(15)
         mock_ssh.open_sftp.assert_called_once()
 
 
@@ -132,6 +133,7 @@ def test_sftp_manager_connect_retry_and_succeed():
         assert client is mock_sftp_ok
         assert mock_sleep.call_count == 1
         mock_sleep.assert_called_with(2)
+        mock_ssh_fail.close.assert_called_once()
 
 
 def test_sftp_manager_connect_exhaust_retries_raises_connection_error():
@@ -154,6 +156,7 @@ def test_sftp_manager_connect_exhaust_retries_raises_connection_error():
 
         assert mock_sleep.call_count == 1
         mock_sleep.assert_called_with(1)
+        assert mock_ssh_fail.close.call_count == 2
 
 
 def test_sftp_manager_close_handles_exceptions():

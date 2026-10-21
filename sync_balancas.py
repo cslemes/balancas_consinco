@@ -5,7 +5,7 @@ Sincronizador SFTP de Arquivos de Balanças
 Totvs Consinco Cloud SFTP -> Servidor Windows C:\\balancas\\xx
 """
 
-import os
+import posixpath
 import sys
 import time
 import argparse
@@ -73,10 +73,10 @@ def run_sync_cycle(cfg: Config) -> Dict[str, int]:
                 continue
 
             stats["folders_checked"] += 1
-            if cfg.remote_base_dir in [".", "/", ""]:
-                remote_folder_path = remote_folder
-            else:
-                remote_folder_path = f"{cfg.remote_base_dir.rstrip('/')}/{remote_folder}"
+            remote_folder_path = (
+                remote_folder if cfg.remote_base_dir in [".", ""]
+                else posixpath.join(cfg.remote_base_dir, remote_folder)
+            )
 
             try:
                 files = sftp_mgr.list_files(remote_folder_path)
@@ -86,7 +86,7 @@ def run_sync_cycle(cfg: Config) -> Dict[str, int]:
                 continue
 
             for filename, size, mtime in files:
-                remote_file_path = f"{remote_folder_path}/{filename}"
+                remote_file_path = posixpath.join(remote_folder_path, filename)
                 local_file_path = local_folder / filename
 
                 status = syncer.sync_file(

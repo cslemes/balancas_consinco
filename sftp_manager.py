@@ -22,6 +22,7 @@ class SFTPManager:
                     f"(Tentativa {attempt}/{max_retries})..."
                 )
                 ssh = paramiko.SSHClient()
+                self._ssh = ssh
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 ssh.connect(
                     hostname=self.config.sftp_host,
@@ -32,7 +33,9 @@ class SFTPManager:
                     look_for_keys=False,
                     allow_agent=False,
                 )
-                self._ssh = ssh
+                transport = ssh.get_transport()
+                if transport:
+                    transport.set_keepalive(15)
                 self._sftp = ssh.open_sftp()
                 logger.info("Conexão SFTP estabelecida com sucesso.")
                 return self._sftp

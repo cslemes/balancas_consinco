@@ -95,7 +95,8 @@ def test_sync_file_atomic_download(tmp_path):
     assert local_file.read_bytes() == b"downloaded content"
     assert int(local_file.stat().st_mtime) == 1700000000
     # Temporary file should not exist
-    assert not local_file.with_suffix(local_file.suffix + ".tmp").exists()
+    assert not (local_file.parent / f"{local_file.name}.{os.getpid()}.tmp").exists()
+    assert not list(tmp_path.glob("*.tmp"))
 
 
 def test_sync_file_skipped_when_up_to_date(tmp_path):
@@ -165,8 +166,9 @@ def test_sync_file_permission_error_locked_file(tmp_path, monkeypatch):
 
     assert status == "error"
     # tmp file must be cleaned up
-    tmp_path_file = local_file.with_suffix(local_file.suffix + ".tmp")
+    tmp_path_file = local_file.parent / f"{local_file.name}.{os.getpid()}.tmp"
     assert not tmp_path_file.exists()
+    assert not list(tmp_path.glob("*.tmp"))
 
 
 def test_sync_file_general_exception_cleans_up(tmp_path):
@@ -190,5 +192,6 @@ def test_sync_file_general_exception_cleans_up(tmp_path):
     )
 
     assert status == "error"
-    tmp_path_file = local_file.with_suffix(local_file.suffix + ".tmp")
+    tmp_path_file = local_file.parent / f"{local_file.name}.{os.getpid()}.tmp"
     assert not tmp_path_file.exists()
+    assert not list(tmp_path.glob("*.tmp"))

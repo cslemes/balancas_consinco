@@ -151,3 +151,16 @@ def test_empty_string_env_values_fallback_to_defaults(tmp_path):
     assert cfg.sftp_port == 22
     assert cfg.remote_base_dir == "."
     assert cfg.folder_regex == r"(?i)^bal(\d+)$"
+
+def test_config_password_not_in_repr():
+    cfg = Config(
+        sftp_host="localhost",
+        sftp_port=22,
+        sftp_user="user",
+        sftp_password="super_secret_password_123",
+        local_base_dir=Path("/tmp"),
+    )
+    repr_str = repr(cfg)
+    assert "super_secret_password_123" not in repr_str
+    assert "sftp_password" not in repr_str
+

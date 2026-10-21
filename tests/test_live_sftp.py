@@ -11,6 +11,11 @@ from sftp_manager import SFTPManager
 from folder_mapper import FolderMapper
 from sync_balancas import run_sync_cycle
 
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.skipif(not os.path.exists(".env"), reason=".env não encontrado"),
+]
+
 
 def test_live_sftp_connection_and_folders():
     if not os.path.exists(".env"):

@@ -42,5 +42,6 @@ def test_folder_mapper_get_local_folder():
     mapper = FolderMapper(pattern=r"(?i)^bal(\d+)$")
     base = Path("C:/balancas")
     assert mapper.get_local_folder(base, "BAL01") == Path("C:/balancas/01")
+    assert mapper.get_local_folder("C:/balancas", "BAL01") == Path("C:/balancas/01")
     assert mapper.get_local_folder(base, "BAL93") == Path("C:/balancas/93")
     assert mapper.get_local_folder(base, "BALANCAS") is None

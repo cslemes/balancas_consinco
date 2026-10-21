@@ -1,5 +1,5 @@
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional, Any
 from urllib.parse import urlsplit
@@ -10,7 +10,7 @@ class Config:
     sftp_host: str
     sftp_port: int
     sftp_user: str
-    sftp_password: str
+    sftp_password: str = field(repr=False)
     local_base_dir: Path
     remote_base_dir: str = "."
     folder_regex: str = r"(?i)^bal(\d+)$"

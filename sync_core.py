@@ -1,5 +1,4 @@
 import os
-import shutil
 import logging
 from pathlib import Path
 from typing import Any
@@ -44,7 +43,7 @@ class FileSyncer:
             logger.info(f"[DRY-RUN] Baixaria {remote_path} -> {local_path} ({remote_size} bytes)")
             return "downloaded"
 
-        tmp_path = local_path.with_suffix(local_path.suffix + ".tmp")
+        tmp_path = local_path.parent / f"{local_path.name}.{os.getpid()}.tmp"
         try:
             local_path.parent.mkdir(parents=True, exist_ok=True)
             logger.info(f"[BAIXANDO] {remote_path} -> {local_path.name} ({remote_size} bytes)")

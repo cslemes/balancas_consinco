@@ -37,6 +37,18 @@ func TestSFTPManager_UnconnectedErrors(t *testing.T) {
 	assert.Contains(t, err.Error(), "sftp não conectado")
 }
 
+func TestSFTPManager_NilConfig(t *testing.T) {
+	var nilMgr *sftpclient.SFTPManager
+	err := nilMgr.Connect()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "configuração do sftp não informada")
+
+	mgr := sftpclient.NewSFTPManager(nil)
+	err = mgr.Connect()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "configuração do sftp não informada")
+}
+
 func TestSFTPManager_CloseIdempotent(t *testing.T) {
 	cfg := &config.Config{}
 	mgr := sftpclient.NewSFTPManager(cfg)

@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"sort"
+	"strconv"
 	"time"
 
 	"balancas/internal/config"
@@ -43,6 +44,12 @@ func (m *SFTPManager) SetRetryDelay(d time.Duration) {
 
 // Connect estabelece a conexão SSH e inicializa o cliente SFTP com retentativas.
 func (m *SFTPManager) Connect() error {
+	if m == nil || m.cfg == nil {
+		return fmt.Errorf("configuração do sftp não informada")
+	}
+
+	m.Close()
+
 	var lastErr error
 	maxRetries := m.cfg.SFTP.MaxRetries
 	if maxRetries <= 0 {
@@ -70,12 +77,14 @@ func (m *SFTPManager) Connect() error {
 			Timeout:         timeout,
 		}
 
-		addr := fmt.Sprintf("%s:%d", m.cfg.SFTP.Host, m.cfg.SFTP.Port)
+		addr := net.JoinHostPort(m.cfg.SFTP.Host, strconv.Itoa(m.cfg.SFTP.Port))
 		conn, err := net.DialTimeout("tcp", addr, sshConfig.Timeout)
 		if err != nil {
 			lastErr = err
 			log.Printf("Falha na conexão TCP: %v", err)
-			time.Sleep(delay)
+			if attempt < maxRetries {
+				time.Sleep(delay)
+			}
 			continue
 		}
 
@@ -84,7 +93,9 @@ func (m *SFTPManager) Connect() error {
 			lastErr = err
 			_ = conn.Close()
 			log.Printf("Falha no handshake SSH: %v", err)
-			time.Sleep(delay)
+			if attempt < maxRetries {
+				time.Sleep(delay)
+			}
 			continue
 		}
 
@@ -96,7 +107,9 @@ func (m *SFTPManager) Connect() error {
 			lastErr = err
 			m.Close()
 			log.Printf("Falha ao abrir canal SFTP: %v", err)
-			time.Sleep(delay)
+			if attempt < maxRetries {
+				time.Sleep(delay)
+			}
 			continue
 		}
 

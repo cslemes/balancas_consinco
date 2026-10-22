@@ -130,6 +130,7 @@ var runCmd = &cobra.Command{
 		cfg, err := loadAndConfigure()
 		if err != nil {
 			log.Printf("Erro fatal ao carregar configuração: %v", err)
+			closeLogFile()
 			exitFunc(1)
 			return
 		}
@@ -138,16 +139,19 @@ var runCmd = &cobra.Command{
 		stats, err := runSyncCycleFunc(cfg)
 		if err != nil {
 			log.Printf("Erro fatal durante o ciclo de sincronização: %v", err)
+			closeLogFile()
 			exitFunc(1)
 			return
 		}
 
 		if stats.Errors > 0 {
 			log.Printf("Ciclo finalizado com %d erro(s) parcial(is).", stats.Errors)
+			closeLogFile()
 			exitFunc(2)
 			return
 		}
 
+		closeLogFile()
 		exitFunc(0)
 	},
 }
@@ -247,6 +251,7 @@ func init() {
 // Execute executa o comando raiz do CLI.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
+		closeLogFile()
 		os.Exit(1)
 	}
 }

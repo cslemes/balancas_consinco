@@ -237,3 +237,40 @@ func TestNewService_ArgumentsWithConfig(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, svc)
 }
+
+func TestRunCmd_ClosesLogFileBeforeExit(t *testing.T) {
+	origExit := exitFunc
+	origSync := runSyncCycleFunc
+	defer func() {
+		exitFunc = origExit
+		runSyncCycleFunc = origSync
+		cfgFile = ""
+		closeLogFile()
+	}()
+
+	tempDir := t.TempDir()
+	logFile := filepath.Join(tempDir, "test_exit.log")
+
+	tomlContent := "logging.log_file = \"" + filepath.ToSlash(logFile) + "\"\n"
+	tomlPath := filepath.Join(tempDir, "config.toml")
+	require.NoError(t, os.WriteFile(tomlPath, []byte(tomlContent), 0644))
+	cfgFile = tomlPath
+
+	var logHandleNilAtExit bool
+	var capturedCode int
+	exitFunc = func(code int) {
+		capturedCode = code
+		logHandleNilAtExit = (logFileHandle == nil)
+	}
+
+	runSyncCycleFunc = func(cfg *config.Config) (service.SyncStats, error) {
+		assert.NotNil(t, logFileHandle, "logFileHandle deve estar aberto durante o ciclo")
+		return service.SyncStats{FoldersChecked: 1, Errors: 0}, nil
+	}
+
+	rootCmd.SetArgs([]string{"run"})
+	err := rootCmd.Execute()
+	require.NoError(t, err)
+	assert.Equal(t, 0, capturedCode)
+	assert.True(t, logHandleNilAtExit, "closeLogFile() deve ser chamado antes de exitFunc()")
+}

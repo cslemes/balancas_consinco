@@ -1,0 +1,51 @@
+# ==============================================================================
+# Configuração do Serviço de Sincronização de Balanças (Go Windows Service)
+# ==============================================================================
+
+[sftp]
+# URL completa de conexão SFTP no formato: sftp://host:port ou sftp://user:pass@host:port
+url = "sftp://supermercados212430.consinco.cloudtotvs.com.br:2323"
+
+# Alternativamente ou sobrescrevendo os dados da URL:
+# host = "supermercados212430.consinco.cloudtotvs.com.br"
+# port = 2323
+user = "ftp_prod_CK5ETD"
+password = "sua_senha_aqui"
+
+# Timeout em segundos para conexões e operações SFTP (padrão: 30)
+timeout_seconds = 30
+
+# Número máximo de tentativas de reconexão em caso de falha (padrão: 3)
+max_retries = 3
+
+[sync]
+# Diretório raiz local onde as pastas das balanças residem
+local_base_dir = "C:\\balancas"
+
+# Diretório raiz remoto no servidor SFTP (geralmente "." ou caminho relativo/absoluto)
+remote_base_dir = "."
+
+# Expressão regular para identificar diretórios de balança (ex: bal1, bal02, BAL10)
+folder_pattern = "(?i)^bal(\\d+)$"
+
+# Intervalo entre os ciclos de sincronização contínua em segundos (padrão: 300 = 5 min)
+interval_seconds = 300
+
+# Tolerância em segundos para comparação de mtime entre arquivos local e remoto (padrão: 2)
+mtime_tolerance_seconds = 2
+
+# Modo simulação (apenas calcula e exibe o plano sem baixar/modificar arquivos)
+# dry_run = false
+
+[logging]
+# Caminho para gravação de logs
+log_file = "logs/sync_balancas.log"
+
+# Nível de log: debug, info, warn, error (padrão: info)
+level = "info"
+
+# Tamanho máximo do arquivo de log antes de rotacionar (em MB)
+max_size_mb = 10
+
+# Quantidade máxima de backups preservados na rotação
+max_backups = 5

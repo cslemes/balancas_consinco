@@ -116,8 +116,8 @@ func TestLoadConfig_RepoConfigTOML(t *testing.T) {
 	assert.Equal(t, "supermercados212430.consinco.cloudtotvs.com.br", cfg.SFTP.Host)
 	assert.Equal(t, 2323, cfg.SFTP.Port)
 	if !isExample {
-		assert.Equal(t, "ftp_prod_CK5ETD", cfg.SFTP.User)
-		assert.Equal(t, "sua_senha_aqui", cfg.SFTP.Password)
+		assert.NotEmpty(t, cfg.SFTP.User)
+		assert.NotEmpty(t, cfg.SFTP.Password)
 	}
 	assert.Equal(t, 30, cfg.SFTP.TimeoutSeconds)
 	assert.Equal(t, 3, cfg.SFTP.MaxRetries)

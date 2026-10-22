@@ -1,10 +1,6 @@
 .env
-venv/
-.venv/
-__pycache__/
-*.pyc
-*.tmp
-logs/
-.superpowers/
 config.toml
 bin/
+logs/
+.superpowers/
+*.tmp

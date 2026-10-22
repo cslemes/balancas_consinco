@@ -76,17 +76,19 @@ func LoadConfig(configPath string) (*Config, error) {
 
 	if configPath != "" {
 		v.SetConfigFile(configPath)
+		if err := v.ReadInConfig(); err != nil {
+			return nil, fmt.Errorf("erro ao ler arquivo de configuração: %w", err)
+		}
 	} else {
 		v.SetConfigName("config")
 		v.AddConfigPath(".")
 		if execPath, err := os.Executable(); err == nil {
 			v.AddConfigPath(filepath.Dir(execPath))
 		}
-	}
-
-	if err := v.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); !ok && !os.IsNotExist(err) {
-			return nil, fmt.Errorf("erro ao ler arquivo de configuração: %w", err)
+		if err := v.ReadInConfig(); err != nil {
+			if _, ok := err.(viper.ConfigFileNotFoundError); !ok && !os.IsNotExist(err) {
+				return nil, fmt.Errorf("erro ao ler arquivo de configuração: %w", err)
+			}
 		}
 	}
 

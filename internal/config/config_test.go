@@ -151,3 +151,16 @@ func TestLoadConfig_InvalidTOML(t *testing.T) {
 	_, err = config.LoadConfig(configFile)
 	require.Error(t, err)
 }
+
+func TestLoadConfig_ExplicitFileNotFound(t *testing.T) {
+	_, err := config.LoadConfig(filepath.Join(t.TempDir(), "missing_config.toml"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "erro ao ler arquivo de configuração")
+}
+
+func TestLoadConfig_AutoDiscoveryEmptyPath(t *testing.T) {
+	cfg, err := config.LoadConfig("")
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+	assert.NotEmpty(t, cfg.Sync.LocalBaseDir)
+}

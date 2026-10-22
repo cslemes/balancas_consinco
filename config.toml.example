@@ -9,8 +9,8 @@ url = "sftp://supermercados212430.consinco.cloudtotvs.com.br:2323"
 # Alternativamente ou sobrescrevendo os dados da URL:
 # host = "supermercados212430.consinco.cloudtotvs.com.br"
 # port = 2323
-user = "ftp_prod_CK5ETD"
-password = "sua_senha_aqui"
+user = "seu_usuario"
+password = "sua_senha"
 
 # Timeout em segundos para conexões e operações SFTP (padrão: 30)
 timeout_seconds = 30

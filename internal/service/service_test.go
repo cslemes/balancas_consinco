@@ -1,6 +1,7 @@
 package service_test
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
@@ -115,7 +116,7 @@ func TestWindowsService_StartStop(t *testing.T) {
 	}
 
 	svc := service.NewWindowsService(cfg)
-	svc.SetSyncFunc(func(c *config.Config) (service.SyncStats, error) {
+	svc.SetSyncFunc(func(ctx context.Context, c *config.Config) (service.SyncStats, error) {
 		atomic.AddInt32(&runCount, 1)
 		return service.SyncStats{}, nil
 	})
@@ -147,7 +148,7 @@ func TestWindowsService_TickerExecution(t *testing.T) {
 
 	svc := service.NewWindowsService(cfg)
 	svc.SetInterval(50 * time.Millisecond) // test helper for fast tick
-	svc.SetSyncFunc(func(c *config.Config) (service.SyncStats, error) {
+	svc.SetSyncFunc(func(ctx context.Context, c *config.Config) (service.SyncStats, error) {
 		atomic.AddInt32(&runCount, 1)
 		return service.SyncStats{}, nil
 	})
@@ -164,9 +165,58 @@ func TestWindowsService_TickerExecution(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestWindowsService_GracefulStopWaitsForCycle(t *testing.T) {
+	var inProgress int32
+	var finished int32
+
+	cfg := &config.Config{
+		Sync: config.SyncConfig{
+			IntervalSeconds: 60,
+		},
+	}
+
+	svc := service.NewWindowsService(cfg)
+	svc.SetSyncFunc(func(ctx context.Context, c *config.Config) (service.SyncStats, error) {
+		atomic.StoreInt32(&inProgress, 1)
+		// Simula processamento que checa contexto
+		select {
+		case <-time.After(100 * time.Millisecond):
+		case <-ctx.Done():
+		}
+		atomic.StoreInt32(&finished, 1)
+		atomic.StoreInt32(&inProgress, 0)
+		return service.SyncStats{}, ctx.Err()
+	})
+
+	require.NoError(t, svc.Start(nil))
+
+	require.Eventually(t, func() bool {
+		return atomic.LoadInt32(&inProgress) == 1
+	}, 1*time.Second, 10*time.Millisecond)
+
+	// Ao chamar Stop, deve aguardar a goroutine concluir
+	require.NoError(t, svc.Stop(nil))
+	assert.Equal(t, int32(1), atomic.LoadInt32(&finished))
+	assert.Equal(t, int32(0), atomic.LoadInt32(&inProgress))
+}
+
 func TestRunSyncCycle_NilConfig(t *testing.T) {
-	stats, err := service.RunSyncCycle(nil)
+	stats, err := service.RunSyncCycle(context.Background(), nil)
 	assert.Error(t, err)
+	assert.Equal(t, 0, stats.FoldersChecked)
+}
+
+func TestRunSyncCycle_ContextCanceled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // canceled ahead of time
+
+	cfg := &config.Config{
+		Sync: config.SyncConfig{
+			FolderPattern: `(?i)^bal(\d+)$`,
+		},
+	}
+	stats, err := service.RunSyncCycle(ctx, cfg)
+	assert.ErrorIs(t, err, context.Canceled)
 	assert.Equal(t, 0, stats.FoldersChecked)
 }
 
@@ -176,7 +226,7 @@ func TestRunSyncCycle_InvalidPattern(t *testing.T) {
 			FolderPattern: "[invalid(regex",
 		},
 	}
-	stats, err := service.RunSyncCycle(cfg)
+	stats, err := service.RunSyncCycle(context.Background(), cfg)
 	assert.Error(t, err)
 	assert.Equal(t, 0, stats.FoldersChecked)
 }
@@ -195,7 +245,7 @@ func TestRunSyncCycle_SFTPConnectFailure(t *testing.T) {
 			FolderPattern: `(?i)^bal(\d+)$`,
 		},
 	}
-	stats, err := service.RunSyncCycle(cfg)
+	stats, err := service.RunSyncCycle(context.Background(), cfg)
 	assert.Error(t, err)
 	assert.Equal(t, 0, stats.FoldersChecked)
 }
@@ -242,7 +292,7 @@ func TestRunSyncCycle_Integration_FullCycle(t *testing.T) {
 	}
 
 	// 1. Initial Sync: Should download files from bal1 and bal2, ignore unrelated_dir
-	stats, err := service.RunSyncCycle(cfg)
+	stats, err := service.RunSyncCycle(context.Background(), cfg)
 	require.NoError(t, err)
 	assert.Equal(t, 2, stats.FoldersChecked)
 	assert.Equal(t, 2, stats.Downloaded)
@@ -262,7 +312,7 @@ func TestRunSyncCycle_Integration_FullCycle(t *testing.T) {
 	assert.Equal(t, file2Content, data2)
 
 	// 2. Second Sync without changes: Should skip all files
-	stats2, err := service.RunSyncCycle(cfg)
+	stats2, err := service.RunSyncCycle(context.Background(), cfg)
 	require.NoError(t, err)
 	assert.Equal(t, 2, stats2.FoldersChecked)
 	assert.Equal(t, 0, stats2.Downloaded)
@@ -271,7 +321,7 @@ func TestRunSyncCycle_Integration_FullCycle(t *testing.T) {
 
 	// 3. Worker struct wrapper test
 	worker := service.NewWorker(cfg)
-	statsWorker, err := worker.RunSyncCycle()
+	statsWorker, err := worker.RunSyncCycle(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, 2, statsWorker.FoldersChecked)
 	assert.Equal(t, 0, statsWorker.Downloaded)
@@ -308,7 +358,7 @@ func TestRunSyncCycle_DryRun(t *testing.T) {
 		},
 	}
 
-	stats, err := service.RunSyncCycle(cfg)
+	stats, err := service.RunSyncCycle(context.Background(), cfg)
 	require.NoError(t, err)
 	assert.Equal(t, 1, stats.FoldersChecked)
 	assert.Equal(t, 1, stats.Downloaded) // DryRun returns downloaded status in syncer

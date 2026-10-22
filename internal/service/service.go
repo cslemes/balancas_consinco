@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"log"
+	"sync"
 	"time"
 
 	"balancas/internal/config"
@@ -15,7 +16,8 @@ type WindowsService struct {
 	ctx      context.Context
 	cancel   context.CancelFunc
 	interval time.Duration
-	syncFn   func(cfg *config.Config) (SyncStats, error)
+	wg       sync.WaitGroup
+	syncFn   func(ctx context.Context, cfg *config.Config) (SyncStats, error)
 }
 
 // NewWindowsService inicializa uma nova instância de WindowsService.
@@ -39,7 +41,7 @@ func NewWindowsService(cfg *config.Config) *WindowsService {
 }
 
 // SetSyncFunc substitui a função executada a cada ciclo (útil para testes unitários).
-func (s *WindowsService) SetSyncFunc(fn func(cfg *config.Config) (SyncStats, error)) {
+func (s *WindowsService) SetSyncFunc(fn func(ctx context.Context, cfg *config.Config) (SyncStats, error)) {
 	s.syncFn = fn
 }
 
@@ -55,15 +57,32 @@ func (s *WindowsService) Start(svc service.Service) error {
 	return nil
 }
 
-// Stop finaliza a execução do worker loop cancelando o contexto do serviço.
+// Stop finaliza a execução do worker loop cancelando o contexto do serviço e aguardando encerramento.
 func (s *WindowsService) Stop(svc service.Service) error {
 	log.Println("Serviço Windows recebendo sinal de parada...")
 	s.cancel()
+
+	done := make(chan struct{})
+	go func() {
+		s.wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		log.Println("Serviço Windows finalizado com sucesso.")
+	case <-time.After(15 * time.Second):
+		log.Println("[AVISO] Timeout de 15s aguardando finalização das rotinas do serviço.")
+	}
+
 	return nil
 }
 
 // run executa o primeiro ciclo imediatamente e em seguida inicia o loop baseado no intervalo configurado.
 func (s *WindowsService) run() {
+	s.wg.Add(1)
+	defer s.wg.Done()
+
 	interval := s.interval
 	if interval <= 0 {
 		if s.cfg != nil {
@@ -79,8 +98,12 @@ func (s *WindowsService) run() {
 		executeSync = RunSyncCycle
 	}
 
-	// Executa primeiro ciclo imediatamente
-	_, _ = executeSync(s.cfg)
+	// Executa primeiro ciclo imediatamente se não cancelado
+	if s.ctx.Err() == nil {
+		if _, err := executeSync(s.ctx, s.cfg); err != nil && err != context.Canceled {
+			log.Printf("[ERRO] Falha no ciclo de sincronização: %v", err)
+		}
+	}
 
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
@@ -91,7 +114,9 @@ func (s *WindowsService) run() {
 			log.Println("Worker encerrado com sucesso.")
 			return
 		case <-ticker.C:
-			_, _ = executeSync(s.cfg)
+			if _, err := executeSync(s.ctx, s.cfg); err != nil && err != context.Canceled {
+				log.Printf("[ERRO] Falha no ciclo de sincronização: %v", err)
+			}
 		}
 	}
 }

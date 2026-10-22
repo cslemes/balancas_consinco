@@ -88,6 +88,12 @@ func (m *SFTPManager) Connect() error {
 			continue
 		}
 
+		if tcpConn, ok := conn.(*net.TCPConn); ok {
+			_ = tcpConn.SetKeepAlive(true)
+			_ = tcpConn.SetKeepAlivePeriod(30 * time.Second)
+		}
+		_ = conn.SetDeadline(time.Now().Add(sshConfig.Timeout))
+
 		sshConn, chans, reqs, err := ssh.NewClientConn(conn, addr, sshConfig)
 		if err != nil {
 			lastErr = err
@@ -98,6 +104,8 @@ func (m *SFTPManager) Connect() error {
 			}
 			continue
 		}
+
+		_ = conn.SetDeadline(time.Time{})
 
 		client := ssh.NewClient(sshConn, chans, reqs)
 		m.sshClient = client

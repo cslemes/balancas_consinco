@@ -126,3 +126,24 @@ func LoadConfig(configPath string) (*Config, error) {
 
 	return &cfg, nil
 }
+
+// Validate verifica se as configurações obrigatórias do serviço estão preenchidas e válidas.
+func (c *Config) Validate() error {
+	if c == nil {
+		return fmt.Errorf("configuração não informada")
+	}
+	if strings.TrimSpace(c.SFTP.Host) == "" {
+		return fmt.Errorf("host do SFTP não configurado (sftp.host)")
+	}
+	if strings.TrimSpace(c.SFTP.User) == "" {
+		return fmt.Errorf("usuário do SFTP não configurado (sftp.user)")
+	}
+	if strings.TrimSpace(c.SFTP.Password) == "" {
+		return fmt.Errorf("senha do SFTP não configurada (sftp.password)")
+	}
+	if c.Sync.IntervalSeconds <= 0 {
+		return fmt.Errorf("intervalo de sincronização deve ser maior que zero (sync.interval_seconds)")
+	}
+	return nil
+}
+

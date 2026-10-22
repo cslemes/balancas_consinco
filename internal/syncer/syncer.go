@@ -76,7 +76,9 @@ func (s *FileSyncer) DownloadAtomic(src io.Reader, localPath string, remoteMtime
 	}
 
 	// Ajusta mtime
-	_ = os.Chtimes(localPath, remoteMtime, remoteMtime)
+	if err := os.Chtimes(localPath, remoteMtime, remoteMtime); err != nil {
+		log.Printf("[AVISO] Falha ao atualizar data de modificação de %s: %v", localPath, err)
+	}
 	return nil
 }
 
@@ -123,6 +125,8 @@ func (s *FileSyncer) SyncFile(
 		return StatusError, err
 	}
 
-	_ = os.Chtimes(localPath, remoteMtime, remoteMtime)
+	if err := os.Chtimes(localPath, remoteMtime, remoteMtime); err != nil {
+		log.Printf("[AVISO] Falha ao atualizar data de modificação de %s: %v", localPath, err)
+	}
 	return StatusDownloaded, nil
 }

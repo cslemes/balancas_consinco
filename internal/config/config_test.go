@@ -103,14 +103,22 @@ url = "sftp://sftpuser:sftppass@sftp.example.com:2222"
 }
 
 func TestLoadConfig_RepoConfigTOML(t *testing.T) {
-	// Test loading the project root config.toml
-	cfg, err := config.LoadConfig("../../config.toml")
+	targetFile := "../../config.toml"
+	isExample := false
+	if _, err := os.Stat(targetFile); os.IsNotExist(err) {
+		targetFile = "../../config.toml.example"
+		isExample = true
+	}
+
+	cfg, err := config.LoadConfig(targetFile)
 	require.NoError(t, err)
 
 	assert.Equal(t, "supermercados212430.consinco.cloudtotvs.com.br", cfg.SFTP.Host)
 	assert.Equal(t, 2323, cfg.SFTP.Port)
-	assert.Equal(t, "ftp_prod_CK5ETD", cfg.SFTP.User)
-	assert.Equal(t, "sua_senha_aqui", cfg.SFTP.Password)
+	if !isExample {
+		assert.Equal(t, "ftp_prod_CK5ETD", cfg.SFTP.User)
+		assert.Equal(t, "sua_senha_aqui", cfg.SFTP.Password)
+	}
 	assert.Equal(t, 30, cfg.SFTP.TimeoutSeconds)
 	assert.Equal(t, 3, cfg.SFTP.MaxRetries)
 
@@ -164,3 +172,61 @@ func TestLoadConfig_AutoDiscoveryEmptyPath(t *testing.T) {
 	require.NotNil(t, cfg)
 	assert.NotEmpty(t, cfg.Sync.LocalBaseDir)
 }
+
+func TestConfig_Validate(t *testing.T) {
+	t.Run("nil config", func(t *testing.T) {
+		var cfg *config.Config
+		err := cfg.Validate()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "não informada")
+	})
+
+	t.Run("missing host", func(t *testing.T) {
+		cfg := &config.Config{
+			SFTP: config.SFTPConfig{Host: "", User: "u", Password: "p"},
+			Sync: config.SyncConfig{IntervalSeconds: 300},
+		}
+		err := cfg.Validate()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "host do SFTP")
+	})
+
+	t.Run("missing user", func(t *testing.T) {
+		cfg := &config.Config{
+			SFTP: config.SFTPConfig{Host: "h", User: "  ", Password: "p"},
+			Sync: config.SyncConfig{IntervalSeconds: 300},
+		}
+		err := cfg.Validate()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "usuário do SFTP")
+	})
+
+	t.Run("missing password", func(t *testing.T) {
+		cfg := &config.Config{
+			SFTP: config.SFTPConfig{Host: "h", User: "u", Password: ""},
+			Sync: config.SyncConfig{IntervalSeconds: 300},
+		}
+		err := cfg.Validate()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "senha do SFTP")
+	})
+
+	t.Run("invalid interval", func(t *testing.T) {
+		cfg := &config.Config{
+			SFTP: config.SFTPConfig{Host: "h", User: "u", Password: "p"},
+			Sync: config.SyncConfig{IntervalSeconds: 0},
+		}
+		err := cfg.Validate()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "intervalo de sincronização")
+	})
+
+	t.Run("valid config", func(t *testing.T) {
+		cfg := &config.Config{
+			SFTP: config.SFTPConfig{Host: "h", User: "u", Password: "p"},
+			Sync: config.SyncConfig{IntervalSeconds: 60},
+		}
+		assert.NoError(t, cfg.Validate())
+	})
+}
+

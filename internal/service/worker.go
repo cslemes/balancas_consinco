@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -33,15 +34,24 @@ func NewWorker(cfg *config.Config) *Worker {
 }
 
 // RunSyncCycle executa o ciclo de sincronização para a configuração associada ao Worker.
-func (w *Worker) RunSyncCycle() (SyncStats, error) {
-	return RunSyncCycle(w.cfg)
+func (w *Worker) RunSyncCycle(ctx context.Context) (SyncStats, error) {
+	return RunSyncCycle(ctx, w.cfg)
 }
 
 // RunSyncCycle executa uma varredura completa nas pastas remotas do SFTP e sincroniza os arquivos localmente.
-func RunSyncCycle(cfg *config.Config) (SyncStats, error) {
+func RunSyncCycle(ctx context.Context, cfg *config.Config) (SyncStats, error) {
 	var stats SyncStats
 	if cfg == nil {
 		return stats, fmt.Errorf("configuração não informada")
+	}
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	if err := ctx.Err(); err != nil {
+		log.Println("Ciclo de sincronização cancelado")
+		return stats, err
 	}
 
 	startTime := time.Now()
@@ -62,12 +72,23 @@ func RunSyncCycle(cfg *config.Config) (SyncStats, error) {
 	}
 	defer sftpMgr.Close()
 
+	if err := ctx.Err(); err != nil {
+		log.Println("Ciclo de sincronização cancelado")
+		return stats, err
+	}
+
 	remoteFolders, err := sftpMgr.ListFolders(cfg.Sync.RemoteBaseDir)
 	if err != nil {
+		log.Printf("[ERRO] Falha ao listar pastas remotas em %s: %v", cfg.Sync.RemoteBaseDir, err)
 		return stats, err
 	}
 
 	for _, rFolder := range remoteFolders {
+		if err := ctx.Err(); err != nil {
+			log.Println("Ciclo de sincronização cancelado")
+			return stats, err
+		}
+
 		localFolder, ok := fMapper.GetLocalFolder(cfg.Sync.LocalBaseDir, rFolder)
 		if !ok {
 			continue
@@ -87,6 +108,11 @@ func RunSyncCycle(cfg *config.Config) (SyncStats, error) {
 		}
 
 		for _, file := range files {
+			if err := ctx.Err(); err != nil {
+				log.Println("Ciclo de sincronização cancelado")
+				return stats, err
+			}
+
 			rFilePath := path.Join(rFolderPath, file.Name)
 			lFilePath := filepath.Join(localFolder, file.Name)
 

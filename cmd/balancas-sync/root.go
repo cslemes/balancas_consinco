@@ -1,28 +1,76 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"balancas/internal/config"
 	"balancas/internal/service"
 	ks "github.com/kardianos/service"
 	"github.com/spf13/cobra"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
+
+// LogLevel representa os níveis de severidade de log suportados.
+type LogLevel int
+
+const (
+	LevelDebug LogLevel = iota
+	LevelInfo
+	LevelWarn
+	LevelError
+)
+
+func parseLogLevel(level string) LogLevel {
+	switch strings.ToLower(strings.TrimSpace(level)) {
+	case "debug":
+		return LevelDebug
+	case "warn", "warning", "aviso":
+		return LevelWarn
+	case "error", "erro":
+		return LevelError
+	default:
+		return LevelInfo
+	}
+}
+
+type levelFilterWriter struct {
+	w        io.Writer
+	minLevel LogLevel
+}
+
+func (f *levelFilterWriter) Write(p []byte) (n int, err error) {
+	upper := strings.ToUpper(string(p))
+	msgLevel := LevelInfo
+	if strings.Contains(upper, "[DEBUG]") {
+		msgLevel = LevelDebug
+	} else if strings.Contains(upper, "[AVISO]") || strings.Contains(upper, "[WARN]") {
+		msgLevel = LevelWarn
+	} else if strings.Contains(upper, "[ERRO]") || strings.Contains(upper, "ERRO FATAL") || strings.Contains(upper, "ERROR") {
+		msgLevel = LevelError
+	}
+
+	if msgLevel < f.minLevel {
+		return len(p), nil
+	}
+	return f.w.Write(p)
+}
 
 var (
 	cfgFile      string
 	dryRunFlag   bool
 	logLevelFlag string
 
-	logFileHandle *os.File
+	logFileHandle io.Closer
 
 	// Variáveis de injeção para testes unitários
 	exitFunc         = os.Exit
-	runSyncCycleFunc = service.RunSyncCycle
+	runSyncCycleFunc func(ctx context.Context, cfg *config.Config) (service.SyncStats, error) = service.RunSyncCycle
 	newServiceFunc   = newService
 )
 
@@ -61,20 +109,39 @@ func setupLogging(cfg *config.Config) {
 		return
 	}
 
-	f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-	if err != nil {
-		log.Printf("Aviso: falha ao abrir arquivo de log %s: %v", logPath, err)
-		return
+	maxSize := cfg.Logging.MaxSizeMB
+	if maxSize <= 0 {
+		maxSize = 10
+	}
+	maxBackups := cfg.Logging.MaxBackups
+	if maxBackups <= 0 {
+		maxBackups = 5
 	}
 
-	logFileHandle = f
+	ljLogger := &lumberjack.Logger{
+		Filename:   logPath,
+		MaxSize:    maxSize,
+		MaxBackups: maxBackups,
+		LocalTime:  true,
+	}
+
+	logFileHandle = ljLogger
 	log.SetFlags(log.Ldate | log.Ltime)
 
+	var baseWriter io.Writer
 	if ks.Interactive() {
-		log.SetOutput(io.MultiWriter(os.Stdout, f))
+		baseWriter = io.MultiWriter(os.Stdout, ljLogger)
 	} else {
-		log.SetOutput(f)
+		baseWriter = ljLogger
 	}
+
+	minLevel := parseLogLevel(cfg.Logging.Level)
+	filteredWriter := &levelFilterWriter{
+		w:        baseWriter,
+		minLevel: minLevel,
+	}
+
+	log.SetOutput(filteredWriter)
 }
 
 func closeLogFile() {
@@ -95,6 +162,10 @@ func loadAndConfigure() (*config.Config, error) {
 	}
 	if logLevelFlag != "" {
 		cfg.Logging.Level = logLevelFlag
+	}
+
+	if err := cfg.Validate(); err != nil {
+		return nil, fmt.Errorf("configuração inválida: %w", err)
 	}
 
 	setupLogging(cfg)
@@ -136,7 +207,7 @@ var runCmd = &cobra.Command{
 		}
 		defer closeLogFile()
 
-		stats, err := runSyncCycleFunc(cfg)
+		stats, err := runSyncCycleFunc(cmd.Context(), cfg)
 		if err != nil {
 			log.Printf("Erro fatal durante o ciclo de sincronização: %v", err)
 			closeLogFile()
@@ -192,7 +263,14 @@ var serviceCmd = &cobra.Command{
 }
 
 func handleServiceAction(action string) error {
-	cfg, _ := config.LoadConfig(cfgFile)
+	cfg, err := config.LoadConfig(cfgFile)
+	if err != nil {
+		return fmt.Errorf("erro ao carregar configuração: %w", err)
+	}
+	if err := cfg.Validate(); err != nil {
+		return fmt.Errorf("configuração inválida: %w", err)
+	}
+
 	prg := service.NewWindowsService(cfg)
 	s, err := newServiceFunc(prg, cfgFile)
 	if err != nil {

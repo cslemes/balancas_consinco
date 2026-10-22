@@ -6,3 +6,5 @@ __pycache__/
 *.tmp
 logs/
 .superpowers/
+config.toml
+bin/

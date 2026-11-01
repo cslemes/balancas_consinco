@@ -1,10 +1,12 @@
 package config
 
 import (
+	"encoding/base64"
 	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -17,6 +19,7 @@ type SFTPConfig struct {
 	Port           int    `mapstructure:"port"`
 	User           string `mapstructure:"user"`
 	Password       string `mapstructure:"password"`
+	HostKeySHA256  string `mapstructure:"host_key_sha256"`
 	TimeoutSeconds int    `mapstructure:"timeout_seconds"`
 	MaxRetries     int    `mapstructure:"max_retries"`
 }
@@ -49,6 +52,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("sftp.port", 22)
 	v.SetDefault("sftp.user", "")
 	v.SetDefault("sftp.password", "")
+	v.SetDefault("sftp.host_key_sha256", "")
 	v.SetDefault("sftp.timeout_seconds", 30)
 	v.SetDefault("sftp.max_retries", 3)
 
@@ -123,6 +127,7 @@ func LoadConfig(configPath string) (*Config, error) {
 	cfg.SFTP.Host = strings.TrimSpace(cfg.SFTP.Host)
 	cfg.SFTP.User = strings.TrimSpace(cfg.SFTP.User)
 	cfg.SFTP.Password = strings.TrimSpace(cfg.SFTP.Password)
+	cfg.SFTP.HostKeySHA256 = strings.TrimSpace(cfg.SFTP.HostKeySHA256)
 
 	return &cfg, nil
 }
@@ -144,6 +149,22 @@ func (c *Config) Validate() error {
 	if c.Sync.IntervalSeconds <= 0 {
 		return fmt.Errorf("intervalo de sincronização deve ser maior que zero (sync.interval_seconds)")
 	}
+	if c.SFTP.Port < 1 || c.SFTP.Port > 65535 {
+		return fmt.Errorf("porta do SFTP deve estar entre 1 e 65535 (sftp.port)")
+	}
+	if strings.TrimSpace(c.Sync.LocalBaseDir) == "" {
+		return fmt.Errorf("diretório local não configurado (sync.local_base_dir)")
+	}
+	if _, err := regexp.Compile(c.Sync.FolderPattern); err != nil {
+		return fmt.Errorf("padrão de pastas inválido (sync.folder_pattern): %w", err)
+	}
+	fingerprint := strings.TrimPrefix(c.SFTP.HostKeySHA256, "SHA256:")
+	if !strings.HasPrefix(c.SFTP.HostKeySHA256, "SHA256:") {
+		return fmt.Errorf("fingerprint SHA-256 da chave do servidor SFTP não configurado (sftp.host_key_sha256)")
+	}
+	decoded, err := base64.RawStdEncoding.DecodeString(fingerprint)
+	if err != nil || len(decoded) != 32 {
+		return fmt.Errorf("fingerprint SHA-256 inválido (sftp.host_key_sha256)")
+	}
 	return nil
 }
-

@@ -179,6 +179,8 @@ url = "sftp://supermercados212430.consinco.cloudtotvs.com.br:2323"
 # port = 2323
 user = "seu_usuario"
 password = "sua_senha"
+# Fingerprint SHA-256 da chave pública SSH (obrigatório; confirme com o provedor por canal confiável)
+host_key_sha256 = "SHA256:SUBSTITUA_PELO_FINGERPRINT_CONFIAVEL"
 
 # Timeout em segundos para conexões e operações SFTP (padrão: 30)
 timeout_seconds = 30
@@ -229,6 +231,7 @@ Qualquer configuração pode ser sobrescrita definindo variáveis de ambiente co
 | `BALANCAS_SFTP_PORT` | `sftp.port` |
 | `BALANCAS_SFTP_USER` | `sftp.user` |
 | `BALANCAS_SFTP_PASSWORD` | `sftp.password` |
+| `BALANCAS_SFTP_HOST_KEY_SHA256` | `sftp.host_key_sha256` |
 | `BALANCAS_SYNC_LOCAL_BASE_DIR` | `sync.local_base_dir` |
 | `BALANCAS_SYNC_DRY_RUN` | `sync.dry_run` |
 

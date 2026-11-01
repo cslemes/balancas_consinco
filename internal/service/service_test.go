@@ -21,7 +21,7 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-func startTestSFTPServer(t *testing.T, workDir string) (string, int, func()) {
+func startTestSFTPServer(t *testing.T, workDir string) (string, int, string, func()) {
 	t.Helper()
 
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
@@ -97,7 +97,7 @@ func startTestSFTPServer(t *testing.T, workDir string) (string, int, func()) {
 		_ = listener.Close()
 	}
 
-	return "127.0.0.1", port, cleanup
+	return "127.0.0.1", port, ssh.FingerprintSHA256(signer.PublicKey()), cleanup
 }
 
 func TestWindowsService_ImplementsInterface(t *testing.T) {
@@ -270,7 +270,7 @@ func TestRunSyncCycle_Integration_FullCycle(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(bal2Remote, "itensmgv.txt"), file2Content, 0644))
 	require.NoError(t, os.WriteFile(filepath.Join(ignoredRemote, "ignored.txt"), []byte("ignored"), 0644))
 
-	host, port, cleanup := startTestSFTPServer(t, remoteDir)
+	host, port, fingerprint, cleanup := startTestSFTPServer(t, remoteDir)
 	defer cleanup()
 
 	cfg := &config.Config{
@@ -279,6 +279,7 @@ func TestRunSyncCycle_Integration_FullCycle(t *testing.T) {
 			Port:           port,
 			User:           "testuser",
 			Password:       "testpass",
+			HostKeySHA256:  fingerprint,
 			TimeoutSeconds: 5,
 			MaxRetries:     2,
 		},
@@ -337,7 +338,7 @@ func TestRunSyncCycle_DryRun(t *testing.T) {
 	require.NoError(t, os.MkdirAll(bal1Remote, 0755))
 	require.NoError(t, os.WriteFile(filepath.Join(bal1Remote, "itensmgv.txt"), []byte("dry run test"), 0644))
 
-	host, port, cleanup := startTestSFTPServer(t, remoteDir)
+	host, port, fingerprint, cleanup := startTestSFTPServer(t, remoteDir)
 	defer cleanup()
 
 	cfg := &config.Config{
@@ -346,6 +347,7 @@ func TestRunSyncCycle_DryRun(t *testing.T) {
 			Port:           port,
 			User:           "testuser",
 			Password:       "testpass",
+			HostKeySHA256:  fingerprint,
 			TimeoutSeconds: 5,
 			MaxRetries:     2,
 		},
@@ -361,7 +363,8 @@ func TestRunSyncCycle_DryRun(t *testing.T) {
 	stats, err := service.RunSyncCycle(context.Background(), cfg)
 	require.NoError(t, err)
 	assert.Equal(t, 1, stats.FoldersChecked)
-	assert.Equal(t, 1, stats.Downloaded) // DryRun returns downloaded status in syncer
+	assert.Equal(t, 0, stats.Downloaded)
+	assert.Equal(t, 1, stats.Planned)
 	assert.Equal(t, 0, stats.Skipped)
 	assert.Equal(t, 0, stats.Errors)
 

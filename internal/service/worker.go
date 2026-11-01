@@ -11,6 +11,7 @@ import (
 
 	"balancas/internal/config"
 	"balancas/internal/mapper"
+	"balancas/internal/pathguard"
 	"balancas/internal/sftpclient"
 	"balancas/internal/syncer"
 )
@@ -19,6 +20,7 @@ import (
 type SyncStats struct {
 	FoldersChecked int
 	Downloaded     int
+	Planned        int
 	Skipped        int
 	Errors         int
 }
@@ -67,10 +69,12 @@ func RunSyncCycle(ctx context.Context, cfg *config.Config) (SyncStats, error) {
 	fSyncer := syncer.NewFileSyncer(cfg.Sync.MtimeToleranceSeconds)
 	sftpMgr := sftpclient.NewSFTPManager(cfg)
 
-	if err := sftpMgr.Connect(); err != nil {
+	if err := sftpMgr.ConnectContext(ctx); err != nil {
 		return stats, err
 	}
 	defer sftpMgr.Close()
+	stopOnCancel := sftpMgr.CloseOnContext(ctx)
+	defer stopOnCancel()
 
 	if err := ctx.Err(); err != nil {
 		log.Println("Ciclo de sincronização cancelado")
@@ -112,6 +116,10 @@ func RunSyncCycle(ctx context.Context, cfg *config.Config) (SyncStats, error) {
 				log.Println("Ciclo de sincronização cancelado")
 				return stats, err
 			}
+			if !pathguard.IsSafeComponent(file.Name) {
+				log.Printf("[AVISO] Nome remoto inválido ignorado em %s: %q", rFolderPath, file.Name)
+				continue
+			}
 
 			rFilePath := path.Join(rFolderPath, file.Name)
 			lFilePath := filepath.Join(localFolder, file.Name)
@@ -125,8 +133,13 @@ func RunSyncCycle(ctx context.Context, cfg *config.Config) (SyncStats, error) {
 				log.Printf("[ERRO] Falha ao sincronizar %s: %v", rFilePath, err)
 				stats.Errors++
 			} else if status == syncer.StatusDownloaded {
-				log.Printf("[BAIXADO] %s -> %s (%d bytes)", rFilePath, file.Name, file.Size)
-				stats.Downloaded++
+				if cfg.Sync.DryRun {
+					log.Printf("[DRY-RUN] Planejado: %s -> %s (%d bytes)", rFilePath, file.Name, file.Size)
+					stats.Planned++
+				} else {
+					log.Printf("[BAIXADO] %s -> %s (%d bytes)", rFilePath, file.Name, file.Size)
+					stats.Downloaded++
+				}
 			} else {
 				stats.Skipped++
 			}
@@ -134,8 +147,8 @@ func RunSyncCycle(ctx context.Context, cfg *config.Config) (SyncStats, error) {
 	}
 
 	elapsed := time.Since(startTime)
-	log.Printf("Ciclo concluído em %v | Pastas: %d | Baixados: %d | Ignorados: %d | Erros: %d",
-		elapsed.Round(time.Millisecond), stats.FoldersChecked, stats.Downloaded, stats.Skipped, stats.Errors)
+	log.Printf("Ciclo concluído em %v | Pastas: %d | Baixados: %d | Planejados: %d | Ignorados: %d | Erros: %d",
+		elapsed.Round(time.Millisecond), stats.FoldersChecked, stats.Downloaded, stats.Planned, stats.Skipped, stats.Errors)
 	log.Println("============================================================")
 
 	return stats, nil

@@ -21,12 +21,12 @@ type mockService struct {
 	err    error
 }
 
-func (m *mockService) Start() error { return m.err }
-func (m *mockService) Stop() error  { return m.err }
-func (m *mockService) Restart() error { return m.err }
-func (m *mockService) Install() error { return m.err }
+func (m *mockService) Start() error     { return m.err }
+func (m *mockService) Stop() error      { return m.err }
+func (m *mockService) Restart() error   { return m.err }
+func (m *mockService) Install() error   { return m.err }
 func (m *mockService) Uninstall() error { return m.err }
-func (m *mockService) Run() error   { return m.err }
+func (m *mockService) Run() error       { return m.err }
 func (m *mockService) Status() (ks.Status, error) {
 	return m.status, m.err
 }
@@ -52,6 +52,7 @@ func createValidConfigFile(t *testing.T) string {
 host = "127.0.0.1"
 user = "testuser"
 password = "testpass"
+host_key_sha256 = "SHA256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 
 [sync]
 local_base_dir = "C:\\balancas"
@@ -337,6 +338,7 @@ func TestRunCmd_ClosesLogFileBeforeExit(t *testing.T) {
 host = "127.0.0.1"
 user = "testuser"
 password = "testpass"
+host_key_sha256 = "SHA256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 
 [logging]
 log_file = "` + filepath.ToSlash(logFile) + `"

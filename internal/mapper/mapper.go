@@ -3,6 +3,8 @@ package mapper
 import (
 	"path/filepath"
 	"regexp"
+
+	"balancas/internal/pathguard"
 )
 
 // FolderMapper maps remote SFTP folder names to local folder paths using regex pattern matching.
@@ -26,7 +28,7 @@ func NewFolderMapper(pattern string) (*FolderMapper, error) {
 // (or the full match if no capture group exists) and true. Otherwise, it returns ("", false).
 func (m *FolderMapper) MatchFolder(folderName string) (string, bool) {
 	matches := m.re.FindStringSubmatch(folderName)
-	if len(matches) == 0 {
+	if len(matches) == 0 || matches[0] != folderName {
 		return "", false
 	}
 	if len(matches) > 1 {
@@ -39,7 +41,7 @@ func (m *FolderMapper) MatchFolder(folderName string) (string, bool) {
 // If the remote folder does not match the mapper pattern, it returns ("", false).
 func (m *FolderMapper) GetLocalFolder(baseDir, remoteName string) (string, bool) {
 	subName, ok := m.MatchFolder(remoteName)
-	if !ok {
+	if !ok || !pathguard.IsSafeComponent(subName) {
 		return "", false
 	}
 	return filepath.Join(baseDir, subName), true

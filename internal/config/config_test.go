@@ -18,6 +18,7 @@ func TestLoadConfig_FromTOML(t *testing.T) {
 url = "sftp://example.com:2323"
 user = "testuser"
 password = "secretpassword"
+host_key_sha256 = "SHA256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 timeout_seconds = 45
 max_retries = 5
 
@@ -223,10 +224,9 @@ func TestConfig_Validate(t *testing.T) {
 
 	t.Run("valid config", func(t *testing.T) {
 		cfg := &config.Config{
-			SFTP: config.SFTPConfig{Host: "h", User: "u", Password: "p"},
-			Sync: config.SyncConfig{IntervalSeconds: 60},
+			SFTP: config.SFTPConfig{Host: "h", Port: 22, User: "u", Password: "p", HostKeySHA256: "SHA256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"},
+			Sync: config.SyncConfig{IntervalSeconds: 60, LocalBaseDir: t.TempDir()},
 		}
 		assert.NoError(t, cfg.Validate())
 	})
 }
-

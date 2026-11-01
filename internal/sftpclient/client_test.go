@@ -86,7 +86,7 @@ func TestSFTPManager_ConnectFailure_Retries(t *testing.T) {
 	assert.Contains(t, err.Error(), "falha ao conectar ao SFTP após 2 tentativas")
 }
 
-func startTestSFTPServer(t *testing.T, workDir string) (string, int, func()) {
+func startTestSFTPServer(t *testing.T, workDir string) (string, int, string, func()) {
 	t.Helper()
 
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
@@ -162,7 +162,7 @@ func startTestSFTPServer(t *testing.T, workDir string) (string, int, func()) {
 		_ = listener.Close()
 	}
 
-	return "127.0.0.1", port, cleanup
+	return "127.0.0.1", port, ssh.FingerprintSHA256(signer.PublicKey()), cleanup
 }
 
 func TestSFTPManager_Integration_Connect_List_Download(t *testing.T) {
@@ -193,7 +193,7 @@ func TestSFTPManager_Integration_Connect_List_Download(t *testing.T) {
 	require.NoError(t, os.MkdirAll(subDirInBal1, 0755))
 
 	// Start SFTP test server
-	host, port, cleanup := startTestSFTPServer(t, tmpDir)
+	host, port, fingerprint, cleanup := startTestSFTPServer(t, tmpDir)
 	defer cleanup()
 
 	cfg := &config.Config{
@@ -202,6 +202,7 @@ func TestSFTPManager_Integration_Connect_List_Download(t *testing.T) {
 			Port:           port,
 			User:           "testuser",
 			Password:       "testpass",
+			HostKeySHA256:  fingerprint,
 			TimeoutSeconds: 5,
 			MaxRetries:     2,
 		},

@@ -11,6 +11,9 @@ url = "sftp://supermercados212430.consinco.cloudtotvs.com.br:2323"
 # port = 2323
 user = "seu_usuario"
 password = "sua_senha"
+# Fingerprint SHA-256 da chave pública SSH do servidor (obrigatório).
+# Obtenha por canal confiável com o provedor e configure no formato SHA256:...; não confie cegamente em ssh-keyscan.
+host_key_sha256 = "SHA256:SUBSTITUA_PELO_FINGERPRINT_CONFIAVEL"
 
 # Timeout em segundos para conexões e operações SFTP (padrão: 30)
 timeout_seconds = 30

@@ -1,0 +1,36 @@
+name: Build Windows
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows-amd64:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build Windows AMD64 executable
+        run: make build-windows
+
+      - name: Upload executable
+        uses: actions/upload-artifact@v7
+        with:
+          name: balancas-sync-windows-amd64-${{ github.run_number }}
+          path: bin/balancas-sync.exe
+          if-no-files-found: error
+          retention-days: 30

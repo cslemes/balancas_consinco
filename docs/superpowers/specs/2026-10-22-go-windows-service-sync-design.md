@@ -48,7 +48,7 @@ Este projeto reformula a solução de sincronização de arquivos de balanças d
 
 5. **Regras de Negócio de Sincronização:**
    - **Mapeamento de Pastas:** Mapeia pastas remotas que casam com `(?i)^bal(\d+)$` (ex: `BAL01` -> `01`, `BAL03` -> `03`) para o destino local `<local_base_dir>/<xx>` (ex: `C:\balancas\01`).
-   - **Arquivos remotos intactos:** Nenhum arquivo remoto no SFTP deve ser apagado ou movido.
+   - **Remoção após cópia:** Um arquivo remoto só é removido após a gravação completa e bem-sucedida da cópia local. O modo `dry-run` preserva os arquivos remotos.
    - **Download Atômico:** Baixa para `<local_path>.<pid>.tmp` e substitui o arquivo original apenas com `os.Rename` após conclusão bem-sucedida.
    - **Sincronização de Data:** Preserva o `mtime` do arquivo remoto no arquivo local via `os.Chtimes`.
    - **Detecção de Mudança:** Pula arquivos cujo tamanho em bytes e data de modificação (`mtime` com tolerância de 2s) sejam idênticos.

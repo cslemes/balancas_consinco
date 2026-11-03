@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"balancas/internal/config"
-	"balancas/internal/service"
+	"github.com/cslemes/balancas_consinco/internal/config"
+	"github.com/cslemes/balancas_consinco/internal/service"
 	ks "github.com/kardianos/service"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

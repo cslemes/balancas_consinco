@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"balancas/internal/config"
-	"balancas/internal/mapper"
-	"balancas/internal/sftpclient"
+	"github.com/cslemes/balancas_consinco/internal/config"
+	"github.com/cslemes/balancas_consinco/internal/mapper"
+	"github.com/cslemes/balancas_consinco/internal/sftpclient"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

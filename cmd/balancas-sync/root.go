@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"balancas/internal/config"
-	"balancas/internal/service"
+	"github.com/cslemes/balancas_consinco/internal/config"
+	"github.com/cslemes/balancas_consinco/internal/service"
 	ks "github.com/kardianos/service"
 	"github.com/spf13/cobra"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -69,9 +69,9 @@ var (
 	logFileHandle io.Closer
 
 	// Variáveis de injeção para testes unitários
-	exitFunc         = os.Exit
+	exitFunc                                                                                  = os.Exit
 	runSyncCycleFunc func(ctx context.Context, cfg *config.Config) (service.SyncStats, error) = service.RunSyncCycle
-	newServiceFunc   = newService
+	newServiceFunc                                                                            = newService
 )
 
 func newService(prg ks.Interface, cfgPath string) (ks.Service, error) {

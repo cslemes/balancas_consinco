@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"balancas/internal/syncer"
+	"github.com/cslemes/balancas_consinco/internal/syncer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

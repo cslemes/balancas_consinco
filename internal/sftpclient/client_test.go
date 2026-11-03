@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"balancas/internal/config"
-	"balancas/internal/sftpclient"
+	"github.com/cslemes/balancas_consinco/internal/config"
+	"github.com/cslemes/balancas_consinco/internal/sftpclient"
 	"github.com/pkg/sftp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

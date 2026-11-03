@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"balancas/internal/config"
-	"balancas/internal/service"
+	"github.com/cslemes/balancas_consinco/internal/config"
+	"github.com/cslemes/balancas_consinco/internal/service"
 	kservice "github.com/kardianos/service"
 	"github.com/pkg/sftp"
 	"github.com/stretchr/testify/assert"

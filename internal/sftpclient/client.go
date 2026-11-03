@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"balancas/internal/config"
-	"balancas/internal/pathguard"
+	"github.com/cslemes/balancas_consinco/internal/config"
+	"github.com/cslemes/balancas_consinco/internal/pathguard"
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 )
@@ -265,6 +265,18 @@ func (m *SFTPManager) DownloadFile(remotePath string, dst io.Writer) error {
 
 	_, err = io.Copy(dst, srcFile)
 	return err
+}
+
+// RemoveFile deletes a remote file after the local copy has been committed.
+func (m *SFTPManager) RemoveFile(remotePath string) error {
+	client := m.getSFTPClient()
+	if client == nil {
+		return fmt.Errorf("sftp não conectado")
+	}
+	if err := client.Remove(remotePath); err != nil {
+		return fmt.Errorf("erro ao remover arquivo remoto %s: %w", remotePath, err)
+	}
+	return nil
 }
 
 func (m *SFTPManager) getSFTPClient() *sftp.Client {

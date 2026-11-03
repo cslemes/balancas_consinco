@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"balancas/internal/pathguard"
+	"github.com/cslemes/balancas_consinco/internal/pathguard"
 )
 
 // FolderMapper maps remote SFTP folder names to local folder paths using regex pattern matching.

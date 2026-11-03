@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"balancas/internal/config"
+	"github.com/cslemes/balancas_consinco/internal/config"
 	"github.com/kardianos/service"
 )
 

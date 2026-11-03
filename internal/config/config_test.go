@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"balancas/internal/config"
+	"github.com/cslemes/balancas_consinco/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

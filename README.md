@@ -38,6 +38,7 @@ Em redes de varejo integradas com ERP (ex: Totvs Consinco Cloud), os arquivos de
 O **`balancas-sync`** realiza:
 - **Mapeamento dinâmico via Regex**: Detecta pastas no SFTP que correspondam ao padrão (ex: `(?i)^bal(\d+)$`) e extrai o identificador numérico, mapeando para `C:\balancas\<id>`.
 - **Sincronização Incremental Inteligente**: Compara tamanho em bytes (`Size`) e data de modificação (`ModTime`) com tolerância configurável (padrão de 2 segundos). Se o arquivo já estiver atualizado, o download é ignorado, economizando banda e I/O de disco.
+- **Remoção após cópia**: Depois de confirmar a gravação local completa, remove o arquivo de origem do SFTP para que ele não seja baixado novamente. O usuário SFTP precisa ter permissão para excluir arquivos. No modo `--dry-run`, não há remoção.
 - **Download Atômico**: Baixa inicialmente para um arquivo temporário (`.tmp`) e o renomeia de forma atômica apenas após a conclusão com sucesso da transferência, preservando o `mtime` original do servidor SFTP. Isso impede que softwares como Toledo MGV leiam arquivos corrompidos ou parciais.
 - **Tolerância a Bloqueio de Arquivos**: Se o arquivo local estiver bloqueado exclusivamente pelo Toledo MGV ou outro processo, o sincronizador registra o aviso no log e continua o ciclo para os demais arquivos sem travar.
 
@@ -86,6 +87,16 @@ make build
 ```
 
 O binário será gerado em `bin/balancas-sync`.
+
+### Instalação pelo módulo Go
+
+O repositório usa o módulo `github.com/cslemes/balancas_consinco`. Depois de publicar uma tag de versão em um repositório GitHub público, instale a CLI com:
+
+```powershell
+go install github.com/cslemes/balancas_consinco/cmd/balancas-sync@v0.1.0
+```
+
+O comando compila para o sistema operacional atual e instala em `GOBIN` (ou em `GOPATH\bin`). Para instalar em um Windows a partir de outro sistema, defina `GOOS=windows` e `GOARCH=amd64` antes de executar `go install`. É necessário ter uma versão do Go compatível com a diretiva `go` do `go.mod`.
 
 ---
 

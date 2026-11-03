@@ -9,11 +9,11 @@ import (
 	"path/filepath"
 	"time"
 
-	"balancas/internal/config"
-	"balancas/internal/mapper"
-	"balancas/internal/pathguard"
-	"balancas/internal/sftpclient"
-	"balancas/internal/syncer"
+	"github.com/cslemes/balancas_consinco/internal/config"
+	"github.com/cslemes/balancas_consinco/internal/mapper"
+	"github.com/cslemes/balancas_consinco/internal/pathguard"
+	"github.com/cslemes/balancas_consinco/internal/sftpclient"
+	"github.com/cslemes/balancas_consinco/internal/syncer"
 )
 
 // SyncStats consolida as métricas de execução de um ciclo de sincronização.
@@ -125,7 +125,14 @@ func RunSyncCycle(ctx context.Context, cfg *config.Config) (SyncStats, error) {
 			lFilePath := filepath.Join(localFolder, file.Name)
 
 			downloadFunc := func(dst io.Writer) error {
-				return sftpMgr.DownloadFile(rFilePath, dst)
+				counter := &countingWriter{Writer: dst}
+				if err := sftpMgr.DownloadFile(rFilePath, counter); err != nil {
+					return err
+				}
+				if counter.written != file.Size {
+					return fmt.Errorf("download incompleto: esperados %d bytes, recebidos %d", file.Size, counter.written)
+				}
+				return nil
 			}
 
 			status, err := fSyncer.SyncFile(downloadFunc, lFilePath, file.Size, file.ModTime, cfg.Sync.DryRun)
@@ -139,9 +146,23 @@ func RunSyncCycle(ctx context.Context, cfg *config.Config) (SyncStats, error) {
 				} else {
 					log.Printf("[BAIXADO] %s -> %s (%d bytes)", rFilePath, file.Name, file.Size)
 					stats.Downloaded++
+					if err := sftpMgr.RemoveFile(rFilePath); err != nil {
+						log.Printf("[ERRO] Arquivo copiado localmente, mas não foi possível removê-lo do SFTP %s: %v", rFilePath, err)
+						stats.Errors++
+					} else {
+						log.Printf("[REMOVIDO DO SFTP] %s", rFilePath)
+					}
 				}
 			} else {
 				stats.Skipped++
+				if !cfg.Sync.DryRun {
+					if err := sftpMgr.RemoveFile(rFilePath); err != nil {
+						log.Printf("[ERRO] Arquivo já atualizado localmente, mas não foi possível removê-lo do SFTP %s: %v", rFilePath, err)
+						stats.Errors++
+					} else {
+						log.Printf("[REMOVIDO DO SFTP] %s (já estava atualizado localmente)", rFilePath)
+					}
+				}
 			}
 		}
 	}
@@ -152,4 +173,15 @@ func RunSyncCycle(ctx context.Context, cfg *config.Config) (SyncStats, error) {
 	log.Println("============================================================")
 
 	return stats, nil
+}
+
+type countingWriter struct {
+	io.Writer
+	written int64
+}
+
+func (w *countingWriter) Write(data []byte) (int, error) {
+	n, err := w.Writer.Write(data)
+	w.written += int64(n)
+	return n, err
 }

@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"balancas/internal/mapper"
+	"github.com/cslemes/balancas_consinco/internal/mapper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -75,4 +75,3 @@ func TestFolderMapper_PatternWithoutCaptureGroup(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, "bal05", sub)
 }
-

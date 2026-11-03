@@ -1,4 +1,4 @@
-module balancas
+module github.com/cslemes/balancas_consinco
 
 go 1.27.0
 

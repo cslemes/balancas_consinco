@@ -1,7 +1,10 @@
-.PHONY: build test build-windows clean
+.PHONY: build test build-linux build-windows clean
 
 build:
 	go build -o bin/balancas-sync ./cmd/balancas-sync
+
+build-linux:
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/balancas-sync-linux-amd64 ./cmd/balancas-sync
 
 build-windows:
 	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o bin/balancas-sync.exe ./cmd/balancas-sync

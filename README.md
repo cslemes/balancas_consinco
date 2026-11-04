@@ -10,7 +10,7 @@ Desenvolvido em Go como um binário nativo único, sem dependências de runtime 
 
 1. [Visão Geral](#visão-geral)
 2. [Estrutura do Projeto](#estrutura-do-projeto)
-3. [Compilação](#compilação)
+3. [Instalação do Go e do binário](#instalação-do-go-e-do-binário)
 4. [Instalação e Gerenciamento do Serviço Windows](#instalação-e-gerenciamento-do-serviço-windows)
    - [Instalação via CLI](#instalação-via-cli)
    - [Gerenciamento do Serviço via CLI](#gerenciamento-do-serviço-via-cli)
@@ -68,7 +68,40 @@ balancas/
 
 ---
 
-## Compilação
+## Instalação do Go e do binário
+
+### Instalar Go no Windows
+
+1. Baixe o instalador para Windows em [go.dev/dl](https://go.dev/dl/). Este projeto requer Go `1.27.0` ou superior, conforme indicado em `go.mod`.
+2. Execute o instalador e, ao terminar, feche e abra novamente o PowerShell.
+3. Confirme a instalação:
+
+```powershell
+go version
+```
+
+### Instalar o `balancas-sync`
+
+No PowerShell, configure o diretório de instalação e instale a versão publicada do módulo:
+
+```powershell
+New-Item -ItemType Directory -Force C:\balancas_sync | Out-Null
+go env -w GOBIN=C:\balancas_sync
+go install github.com/cslemes/balancas_consinco/cmd/balancas-sync@v0.1.0
+```
+
+O `go install` criará `C:\balancas_sync\balancas-sync.exe`. O comando `go env -w` mantém esse destino para as próximas instalações feitas com o mesmo usuário do Windows. Para usar o programa no terminal atual sem informar o caminho completo:
+
+```powershell
+$env:Path += ";C:\balancas_sync"
+balancas-sync.exe --help
+```
+
+Para usar o comando em novos terminais, adicione `C:\balancas_sync` à variável de ambiente `Path` do Windows.
+
+> `go get` não é usado para instalar executáveis nas versões atuais do Go. Use `go install pacote@versão`, como no exemplo acima. Consulte a [documentação oficial do Go](https://go.dev/doc/go-get-install-deprecation).
+
+### Compilar a partir do código-fonte
 
 Para compilar o binário Windows (`balancas-sync.exe`) a partir do Linux ou do Windows com Go instalado:
 
@@ -88,16 +121,6 @@ make build
 
 O binário será gerado em `bin/balancas-sync`.
 
-### Instalação pelo módulo Go
-
-O repositório usa o módulo `github.com/cslemes/balancas_consinco`. Depois de publicar uma tag de versão em um repositório GitHub público, instale a CLI com:
-
-```powershell
-go install github.com/cslemes/balancas_consinco/cmd/balancas-sync@v0.1.0
-```
-
-O comando compila para o sistema operacional atual e instala em `GOBIN` (ou em `GOPATH\bin`). Para instalar em um Windows a partir de outro sistema, defina `GOOS=windows` e `GOARCH=amd64` antes de executar `go install`. É necessário ter uma versão do Go compatível com a diretiva `go` do `go.mod`.
-
 ---
 
 ## Instalação e Gerenciamento do Serviço Windows
@@ -109,17 +132,17 @@ O aplicativo implementa nativamente o protocolo de Serviços do Windows (SCM) us
 
 ### Instalação via CLI
 
-Copie o binário `balancas-sync.exe` e o arquivo `config.toml` para o diretório de destino (ex: `C:\balancas\service` ou `C:\balancas`):
+Depois de instalar o binário e criar o arquivo `C:\balancas_sync\config.toml`, abra o PowerShell como Administrador e execute:
 
-```cmd
-cd C:\balancas
-balancas-sync.exe service install
+```powershell
+cd C:\balancas_sync
+.\balancas-sync.exe service install --config C:\balancas_sync\config.toml
 ```
 
 Caso queira especificar explicitamente o caminho do arquivo de configuração para o serviço:
 
-```cmd
-balancas-sync.exe service install --config C:\balancas\config.toml
+```powershell
+.\balancas-sync.exe service install --config C:\balancas_sync\config.toml
 ```
 
 ### Gerenciamento do Serviço via CLI
@@ -174,7 +197,20 @@ O serviço busca o arquivo `config.toml` no diretório atual de execução e no 
 
 ### Arquivo de Configuração Exemplo
 
-Crie seu `config.toml` a partir do `config.toml.example`:
+O programa precisa de um arquivo `config.toml` com os dados do SFTP e o diretório local. No PowerShell, baixe o modelo da mesma versão instalada e abra-o para edição:
+
+```powershell
+$configDir = "C:\balancas_sync"
+New-Item -ItemType Directory -Force $configDir | Out-Null
+Invoke-WebRequest `
+  -Uri "https://raw.githubusercontent.com/cslemes/balancas_consinco/v0.1.0/config.toml.example" `
+  -OutFile "$configDir\config.toml"
+notepad "$configDir\config.toml"
+```
+
+Preencha pelo menos o usuário, a senha e o fingerprint SHA-256 real do servidor; substitua também o diretório local, se necessário. O fingerprint deve ser confirmado com o provedor por um canal confiável. Não use o valor de exemplo nem envie o arquivo preenchido para o Git, pois ele contém credenciais.
+
+O modelo completo está abaixo. Se você clonou o repositório, também pode copiar `config.toml.example` para `config.toml` e editar a cópia:
 
 ```toml
 # ==============================================================================
@@ -232,6 +268,20 @@ max_size_mb = 10
 max_backups = 5
 ```
 
+Faça uma simulação para verificar a configuração e a conexão antes de iniciar a sincronização real:
+
+```powershell
+balancas-sync.exe run --config C:\balancas_sync\config.toml --dry-run
+```
+
+Quando instalado como serviço, informe o mesmo caminho absoluto para que o Windows encontre o arquivo:
+
+```powershell
+balancas-sync.exe service install --config C:\balancas_sync\config.toml
+```
+
+Depois de uma cópia local bem-sucedida, o sincronizador remove o arquivo correspondente do SFTP. O usuário configurado no SFTP precisa ter permissão para excluir arquivos.
+
 ### Sobrescrita por Variáveis de Ambiente
 
 Qualquer configuração pode ser sobrescrita definindo variáveis de ambiente com o prefixo `BALANCAS_` e substituição de pontos por sublinhados:
@@ -260,7 +310,7 @@ balancas-sync.exe run
 
 Com arquivo de configuração customizado e simulação:
 ```cmd
-balancas-sync.exe run --config C:\balancas\config.toml --dry-run
+balancas-sync.exe run --config C:\balancas_sync\config.toml --dry-run
 ```
 
 ### Execução em Primeiro Plano / Depuração (`start`)
@@ -355,5 +405,5 @@ go test -v ./...
 - **Causa:** Quando iniciado pelo Windows SCM, o diretório de trabalho padrão é `C:\Windows\System32`.
 - **Solução:** O `balancas-sync` busca automaticamente no diretório onde o `balancas-sync.exe` está localizado. Para fixar um caminho absoluto, instale o serviço passando o caminho:
   ```cmd
-  balancas-sync.exe service install --config C:\balancas\config.toml
+  balancas-sync.exe service install --config C:\balancas_sync\config.toml
   ```

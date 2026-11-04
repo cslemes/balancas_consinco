@@ -311,13 +311,17 @@ func TestRunSyncCycle_Integration_FullCycle(t *testing.T) {
 	data2, err := os.ReadFile(localBal2File)
 	require.NoError(t, err)
 	assert.Equal(t, file2Content, data2)
+	_, err = os.Stat(filepath.Join(bal1Remote, "itensmgv.txt"))
+	assert.True(t, os.IsNotExist(err), "remote file should be removed after a successful download")
+	_, err = os.Stat(filepath.Join(bal2Remote, "itensmgv.txt"))
+	assert.True(t, os.IsNotExist(err), "remote file should be removed after a successful download")
 
-	// 2. Second Sync without changes: Should skip all files
+	// 2. Second Sync: Remote files were removed after successful downloads.
 	stats2, err := service.RunSyncCycle(context.Background(), cfg)
 	require.NoError(t, err)
 	assert.Equal(t, 2, stats2.FoldersChecked)
 	assert.Equal(t, 0, stats2.Downloaded)
-	assert.Equal(t, 2, stats2.Skipped)
+	assert.Equal(t, 0, stats2.Skipped)
 	assert.Equal(t, 0, stats2.Errors)
 
 	// 3. Worker struct wrapper test
@@ -326,7 +330,7 @@ func TestRunSyncCycle_Integration_FullCycle(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 2, statsWorker.FoldersChecked)
 	assert.Equal(t, 0, statsWorker.Downloaded)
-	assert.Equal(t, 2, statsWorker.Skipped)
+	assert.Equal(t, 0, statsWorker.Skipped)
 	assert.Equal(t, 0, statsWorker.Errors)
 }
 
